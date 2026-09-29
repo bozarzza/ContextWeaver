@@ -34,7 +34,7 @@
     "@keqingmoe/tree-sitter": "^0.26.2",
     "@lancedb/lancedb": "^0.38.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "better-sqlite3": "^13.0.3",
+    "better-sqlite3": "12.11.1",
     "cac": "^7.0.0",
     "chardet": "^2.2.0",
     "dotenv": "^17.4.2",
