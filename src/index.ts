@@ -21,6 +21,7 @@ import {
 } from './cli/index.js';
 import { parseJsonlLine, toCliSearchResult } from './cli/searchResult.js';
 import { generateProjectId } from './db/index.js';
+import { resolveProjectPath } from './utils/projectPath.js';
 import { type ScanStats, scan } from './scanner/index.js';
 import { logger, setConsoleTarget, setConsoleVerbose } from './utils/logger.js';
 
@@ -110,7 +111,12 @@ cli
   .command('index [path]', '扫描代码库并建立索引')
   .option('-f, --force', '强制重新索引')
   .action(async (targetPath: string | undefined, options: { force?: boolean }) => {
-    const rootPath = targetPath ? path.resolve(targetPath) : process.cwd();
+    // 子目录一律归并到 git 仓库根，避免同一仓库裂成多份索引
+    const requestedPath = targetPath ? path.resolve(targetPath) : process.cwd();
+    const rootPath = resolveProjectPath(requestedPath);
+    if (rootPath !== requestedPath) {
+      writeLine(`${color.gray('归并到仓库根:')} ${rootPath}`);
+    }
     const projectId = generateProjectId(rootPath);
     const startTime = Date.now();
     intro('索引');
@@ -213,7 +219,9 @@ type SearchOptions = {
 
 /** search 命令主体；错误统一由 action 包装处理，机器输出模式按行输出 {"error": ...}。 */
 async function runSearchAction(options: SearchOptions): Promise<void> {
-  const repoPath = options.repoPath ? path.resolve(options.repoPath) : process.cwd();
+  // 子目录一律归并到 git 仓库根（与 index 命令同口径）
+  const requestedPath = options.repoPath ? path.resolve(options.repoPath) : process.cwd();
+  const repoPath = resolveProjectPath(requestedPath);
   const informationRequest = options.informationRequest;
 
   // 机器输出模式提前切换：stdout 只保留 JSON 流，日志（含校验失败提示）改走 stderr

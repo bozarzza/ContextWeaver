@@ -17,6 +17,7 @@ import { generateProjectId, migrateProjectIndex } from '../../db/index.js';
 import type { ContextPack, Segment } from '../../search/types.js';
 import { buildDefaultEnvContent } from '../../utils/envTemplate.js';
 import { logger } from '../../utils/logger.js';
+import { resolveProjectPath } from '../../utils/projectPath.js';
 
 // 工具 Schema (暴露给 LLM)
 
@@ -242,8 +243,18 @@ export async function retrieveCodebase(
   args: CodebaseRetrievalInput,
   onProgress?: ProgressCallback,
 ): Promise<ContextPack> {
-  await prepareCodebaseRetrieval(args.repo_path, onProgress);
-  return retrieveIndexedCodebase(args);
+  // agent 常传工作目录（仓库子目录）而非仓库根；归并到 git 仓库根，
+  // 同一仓库只维护一份索引，避免子目录各自付全量重建税。
+  const resolvedPath = resolveProjectPath(args.repo_path);
+  if (resolvedPath !== args.repo_path) {
+    logger.info(
+      { repo_path: args.repo_path, projectRoot: resolvedPath },
+      'repo_path 归并到 git 仓库根',
+    );
+  }
+  const resolvedArgs = { ...args, repo_path: resolvedPath };
+  await prepareCodebaseRetrieval(resolvedArgs.repo_path, onProgress);
+  return retrieveIndexedCodebase(resolvedArgs);
 }
 
 /**
